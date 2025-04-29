@@ -1,88 +1,226 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <meta charset="utf-8">
-  <title>금천구 동별 경계 온오프</title>
-  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a5e5bd3113d4570be3a6675f338f8960"></script>
+  <title>금천구 10개 동 지도 - 통합 버전</title>
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a5e5bd3113d4570be3a6675f338f8960&libraries=services"></script>
   <style>
-    #buttons {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: white;
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { width: 100%; height: 85%; }
+    #controls {
+      width: 100%;
+      height: 15%;
+      background: #f2f2f2;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       padding: 10px;
-      z-index: 10;
-      box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+      box-sizing: border-box;
     }
-    button {
-      display: block;
-      margin: 5px 0;
-      width: 100px;
+    #controls input[type="file"], #controls button {
+      height: 40px;
+      font-size: 16px;
+    }
+    .sub-buttons {
+      display: none;
+      flex-direction: column;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      padding: 5px;
+      position: absolute;
+      margin-top: 45px;
+      z-index: 999;
+    }
+    .sub-buttons button {
+      margin: 2px 0;
+      width: 120px;
+    }
+    .category {
+      position: relative;
     }
   </style>
 </head>
 <body>
-<div id="buttons">
-  <button onclick="toggleDong('시흥1동')">시흥1동</button>
-  <button onclick="toggleDong('독산1동')">독산1동</button>
-  <button onclick="toggleDong('가산동')">가산동</button>
+
+<div id="map"></div>
+
+<div id="controls">
+  <input type="file" id="fileInput" accept=".csv" />
+  <div class="category">
+    <button onclick="toggleDong('가산동')">가산동</button>
+  </div>
+  <div class="category">
+    <button onclick="toggleCategory('독산동')">독산동 ▼</button>
+    <div id="sub-독산동" class="sub-buttons">
+      <button onclick="toggleDong('독산1동')">독산1동</button>
+      <button onclick="toggleDong('독산2동')">독산2동</button>
+      <button onclick="toggleDong('독산3동')">독산3동</button>
+      <button onclick="toggleDong('독산4동')">독산4동</button>
+    </div>
+  </div>
+  <div class="category">
+    <button onclick="toggleCategory('시흥동')">시흥동 ▼</button>
+    <div id="sub-시흥동" class="sub-buttons">
+      <button onclick="toggleDong('시흥1동')">시흥1동</button>
+      <button onclick="toggleDong('시흥2동')">시흥2동</button>
+      <button onclick="toggleDong('시흥3동')">시흥3동</button>
+      <button onclick="toggleDong('시흥4동')">시흥4동</button>
+      <button onclick="toggleDong('시흥5동')">시흥5동</button>
+    </div>
+  </div>
+  <button onclick="setColorMode('default')">기본색</button>
+  <button onclick="setColorMode('rainbow')">무지개색</button>
+  <button onclick="setColorMode('random')">랜덤색</button>
 </div>
-<div id="map" style="width:100%;height:800px;"></div>
+
 <script>
-  var mapContainer = document.getElementById('map'),
-      mapOption = {
-        center: new kakao.maps.LatLng(37.461, 126.889),
-        level: 5
-      };
+// 지도 초기화
+var mapContainer = document.getElementById('map'),
+    mapOption = {
+      center: new kakao.maps.LatLng(37.456, 126.889),
+      level: 5
+    };
+var map = new kakao.maps.Map(mapContainer, mapOption);
 
-  var map = new kakao.maps.Map(mapContainer, mapOption);
-
-  // 각 동의 Polygon 저장 객체
-  var dongPolygons = {};
-
-  // 각 동의 좌표 정보
-  const dongData = {
-    "시흥1동": [
-      new kakao.maps.LatLng(37.456, 126.889),
-      new kakao.maps.LatLng(37.456, 126.899),
-      new kakao.maps.LatLng(37.466, 126.899),
-      new kakao.maps.LatLng(37.466, 126.889)
-    ],
-    "독산1동": [
-      new kakao.maps.LatLng(37.466, 126.889),
-      new kakao.maps.LatLng(37.466, 126.899),
-      new kakao.maps.LatLng(37.476, 126.899),
-      new kakao.maps.LatLng(37.476, 126.889)
-    ],
-    "가산동": [
-      new kakao.maps.LatLng(37.466, 126.879),
-      new kakao.maps.LatLng(37.466, 126.889),
-      new kakao.maps.LatLng(37.476, 126.889),
-      new kakao.maps.LatLng(37.476, 126.879)
-    ]
-  };
-
-  // 초기에는 폴리곤을 생성해두되 지도에는 표시하지 않음
-  for (let name in dongData) {
-    dongPolygons[name] = new kakao.maps.Polygon({
-      path: dongData[name],
-      strokeWeight: 3,
-      strokeColor: '#004c80',
-      strokeOpacity: 0.8,
-      fillColor: '#ffffff',
-      fillOpacity: 0.4
+// 파일 업로드 → 마커 찍기
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  var reader = new FileReader();
+  reader.onload = function(event) {
+    var text = event.target.result;
+    var lines = text.split("\\n");
+    lines.shift(); // 헤더 제거
+    lines.forEach(function(line) {
+      if (line.trim() === '') return;
+      var parts = line.split(",");
+      var lat = parseFloat(parts[0].trim());
+      var lng = parseFloat(parts[1].trim());
+      new kakao.maps.Marker({
+        position: new kakao.maps.LatLng(lat, lng),
+        map: map
+      });
     });
-  }
+  };
+  reader.readAsText(file);
+});
 
-  // 버튼 클릭 시 해당 동 표시/숨기기 토글
-  function toggleDong(name) {
-    var polygon = dongPolygons[name];
-    if (polygon.getMap()) {
-      polygon.setMap(null);
-    } else {
-      polygon.setMap(map);
+// 금천구 동별 가짜 경계 데이터 (예시, 실제 좌표로 교체 필요)
+var dongPaths = {
+  "가산동": [
+    new kakao.maps.LatLng(37.476, 126.889),
+    new kakao.maps.LatLng(37.476, 126.879),
+    new kakao.maps.LatLng(37.466, 126.879),
+    new kakao.maps.LatLng(37.466, 126.889)
+  ],
+  "독산1동": [
+    new kakao.maps.LatLng(37.466, 126.889),
+    new kakao.maps.LatLng(37.466, 126.899),
+    new kakao.maps.LatLng(37.476, 126.899),
+    new kakao.maps.LatLng(37.476, 126.889)
+  ],
+  "독산2동": [
+    new kakao.maps.LatLng(37.456, 126.889),
+    new kakao.maps.LatLng(37.456, 126.899),
+    new kakao.maps.LatLng(37.466, 126.899),
+    new kakao.maps.LatLng(37.466, 126.889)
+  ],
+  "독산3동": [
+    new kakao.maps.LatLng(37.456, 126.879),
+    new kakao.maps.LatLng(37.456, 126.889),
+    new kakao.maps.LatLng(37.466, 126.889),
+    new kakao.maps.LatLng(37.466, 126.879)
+  ],
+  "독산4동": [
+    new kakao.maps.LatLng(37.466, 126.879),
+    new kakao.maps.LatLng(37.466, 126.869),
+    new kakao.maps.LatLng(37.476, 126.869),
+    new kakao.maps.LatLng(37.476, 126.879)
+  ],
+  "시흥1동": [
+    new kakao.maps.LatLng(37.446, 126.879),
+    new kakao.maps.LatLng(37.446, 126.889),
+    new kakao.maps.LatLng(37.456, 126.889),
+    new kakao.maps.LatLng(37.456, 126.879)
+  ],
+  "시흥2동": [
+    new kakao.maps.LatLng(37.446, 126.869),
+    new kakao.maps.LatLng(37.446, 126.879),
+    new kakao.maps.LatLng(37.456, 126.879),
+    new kakao.maps.LatLng(37.456, 126.869)
+  ],
+  "시흥3동": [
+    new kakao.maps.LatLng(37.456, 126.869),
+    new kakao.maps.LatLng(37.456, 126.879),
+    new kakao.maps.LatLng(37.466, 126.879),
+    new kakao.maps.LatLng(37.466, 126.869)
+  ],
+  "시흥4동": [
+    new kakao.maps.LatLng(37.446, 126.859),
+    new kakao.maps.LatLng(37.446, 126.869),
+    new kakao.maps.LatLng(37.456, 126.869),
+    new kakao.maps.LatLng(37.456, 126.859)
+  ],
+  "시흥5동": [
+    new kakao.maps.LatLng(37.456, 126.859),
+    new kakao.maps.LatLng(37.456, 126.869),
+    new kakao.maps.LatLng(37.466, 126.869),
+    new kakao.maps.LatLng(37.466, 126.859)
+  ]
+};
+
+var polygons = {};
+var colorMode = "default";
+
+for (var name in dongPaths) {
+  polygons[name] = new kakao.maps.Polygon({
+    path: dongPaths[name],
+    strokeWeight: 2,
+    strokeColor: '#004c80',
+    strokeOpacity: 0.8,
+    fillColor: '#ffffff',
+    fillOpacity: 0.3
+  });
+}
+
+function toggleDong(name) {
+  var polygon = polygons[name];
+  if (polygon.getMap()) {
+    polygon.setMap(null);
+  } else {
+    polygon.setOptions({ fillColor: getFillColor(name) });
+    polygon.setMap(map);
+  }
+}
+
+function toggleCategory(category) {
+  var sub = document.getElementById('sub-' + category);
+  sub.style.display = (sub.style.display === 'flex') ? 'none' : 'flex';
+}
+
+function setColorMode(mode) {
+  colorMode = mode;
+  for (var name in polygons) {
+    if (polygons[name].getMap()) {
+      polygons[name].setOptions({ fillColor: getFillColor(name) });
     }
   }
+}
+
+function getFillColor(name) {
+  if (colorMode === "default") return "#ffffff";
+  if (colorMode === "rainbow") {
+    const rainbowColors = ["#FF6666", "#FFCC66", "#99CC66", "#66CCCC", "#6699CC", "#9966CC", "#CC66CC", "#CC6699", "#CC9966", "#66CC99"];
+    var keys = Object.keys(polygons);
+    return rainbowColors[keys.indexOf(name) % rainbowColors.length];
+  }
+  if (colorMode === "random") {
+    return '#' + Math.floor(Math.random()*16777215).toString(16);
+  }
+  return "#ffffff";
+}
 </script>
+
 </body>
 </html>
