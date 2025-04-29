@@ -2,72 +2,87 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>금천구 행정동 경계 표시</title>
+  <title>금천구 동별 경계 온오프</title>
   <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a5e5bd3113d4570be3a6675f338f8960"></script>
+  <style>
+    #buttons {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      z-index: 10;
+      box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+    }
+    button {
+      display: block;
+      margin: 5px 0;
+      width: 100px;
+    }
+  </style>
 </head>
 <body>
+<div id="buttons">
+  <button onclick="toggleDong('시흥1동')">시흥1동</button>
+  <button onclick="toggleDong('독산1동')">독산1동</button>
+  <button onclick="toggleDong('가산동')">가산동</button>
+</div>
 <div id="map" style="width:100%;height:800px;"></div>
 <script>
   var mapContainer = document.getElementById('map'),
       mapOption = {
-        center: new kakao.maps.LatLng(37.456, 126.889), // 금천구 중심
+        center: new kakao.maps.LatLng(37.461, 126.889),
         level: 5
       };
+
   var map = new kakao.maps.Map(mapContainer, mapOption);
 
-  const dongPolygons = [
-    {
-      name: "시흥1동",
-      path: [
-        new kakao.maps.LatLng(37.456, 126.889),
-        new kakao.maps.LatLng(37.456, 126.899),
-        new kakao.maps.LatLng(37.466, 126.899),
-        new kakao.maps.LatLng(37.466, 126.889)
-      ]
-    },
-    {
-      name: "독산1동",
-      path: [
-        new kakao.maps.LatLng(37.466, 126.889),
-        new kakao.maps.LatLng(37.466, 126.899),
-        new kakao.maps.LatLng(37.476, 126.899),
-        new kakao.maps.LatLng(37.476, 126.889)
-      ]
-    },
-    {
-      name: "가산동",
-      path: [
-        new kakao.maps.LatLng(37.466, 126.879),
-        new kakao.maps.LatLng(37.466, 126.889),
-        new kakao.maps.LatLng(37.476, 126.889),
-        new kakao.maps.LatLng(37.476, 126.879)
-      ]
-    }
-  ];
+  // 각 동의 Polygon 저장 객체
+  var dongPolygons = {};
 
-  let selectedPolygon = null;
+  // 각 동의 좌표 정보
+  const dongData = {
+    "시흥1동": [
+      new kakao.maps.LatLng(37.456, 126.889),
+      new kakao.maps.LatLng(37.456, 126.899),
+      new kakao.maps.LatLng(37.466, 126.899),
+      new kakao.maps.LatLng(37.466, 126.889)
+    ],
+    "독산1동": [
+      new kakao.maps.LatLng(37.466, 126.889),
+      new kakao.maps.LatLng(37.466, 126.899),
+      new kakao.maps.LatLng(37.476, 126.899),
+      new kakao.maps.LatLng(37.476, 126.889)
+    ],
+    "가산동": [
+      new kakao.maps.LatLng(37.466, 126.879),
+      new kakao.maps.LatLng(37.466, 126.889),
+      new kakao.maps.LatLng(37.476, 126.889),
+      new kakao.maps.LatLng(37.476, 126.879)
+    ]
+  };
 
-  dongPolygons.forEach(dong => {
-    var polygon = new kakao.maps.Polygon({
-      map: map,
-      path: dong.path,
-      strokeWeight: 2,
+  // 초기에는 폴리곤을 생성해두되 지도에는 표시하지 않음
+  for (let name in dongData) {
+    dongPolygons[name] = new kakao.maps.Polygon({
+      path: dongData[name],
+      strokeWeight: 3,
       strokeColor: '#004c80',
       strokeOpacity: 0.8,
-      fillColor: '#fff',
-      fillOpacity: 0.3
+      fillColor: '#ffffff',
+      fillOpacity: 0.4
     });
+  }
 
-    kakao.maps.event.addListener(polygon, 'click', function() {
-      if (selectedPolygon) {
-        selectedPolygon.setOptions({ fillColor: '#fff' });
-      }
-      polygon.setOptions({ fillColor: '#FF8800' });
-      selectedPolygon = polygon;
-      alert(dong.name + '을 클릭했습니다!');
-    });
-  });
-
+  // 버튼 클릭 시 해당 동 표시/숨기기 토글
+  function toggleDong(name) {
+    var polygon = dongPolygons[name];
+    if (polygon.getMap()) {
+      polygon.setMap(null);
+    } else {
+      polygon.setMap(map);
+    }
+  }
 </script>
 </body>
 </html>
